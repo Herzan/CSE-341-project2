@@ -1,0 +1,19 @@
+{
+  "name": "cse-341-project2",
+  "version": "1.0.0",
+  "description": "my second project",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Herzan/CSE-341-project2.git"
+  },
+  "author": "Herzan Huerta",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Herzan/CSE-341-project2/issues"
+  },
+  "homepage": "https://github.com/Herzan/CSE-341-project2#readme"
+}
