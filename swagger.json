@@ -38,7 +38,10 @@
                   "title": { "type": "string" },
                   "author": { "type": "string" },
                   "isbn": { "type": "string" },
-                  "genre": { "type": "string", "enum": ["Fiction", "Non-Fiction", "Sci-Fi", "Fantasy", "Mystery", "Biography", "Other"] },
+                  "genre": {
+                    "type": "string",
+                    "enum": ["Fiction", "Non-Fiction", "Sci-Fi", "Fantasy", "Mystery", "Biography", "Other"]
+                  },
                   "publicationYear": { "type": "integer", "minimum": 1000 },
                   "pageCount": { "type": "integer", "minimum": 1 },
                   "description": { "type": "string", "maxLength": 1000 },
@@ -47,6 +50,19 @@
                   "isRead": { "type": "boolean" },
                   "userNotes": { "type": "string" }
                 }
+              },
+              "example": {
+                "title": "Atomic Habits",
+                "author": "James Clear",
+                "isbn": "9780735211292",
+                "genre": "Other",
+                "publicationYear": 2018,
+                "pageCount": 320,
+                "description": "A guide on how small habits can lead to big improvements in life.",
+                "coverImageUrl": "https://images-na.ssl-images-amazon.com/images/I/91bYsX41DVL.jpg",
+                "rating": 5,
+                "isRead": true,
+                "userNotes": "Helped me build better daily routines."
               }
             }
           }
@@ -60,7 +76,9 @@
     "/api/books/{id}": {
       "get": {
         "summary": "Get book by ID",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
         "responses": {
           "200": { "description": "Book object" },
           "404": { "description": "Not found" }
@@ -68,8 +86,16 @@
       },
       "put": {
         "summary": "Update book",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
-        "requestBody": { "content": { "application/json": { "schema": { "type": "object" } } } },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
         "responses": {
           "200": { "description": "Updated book" },
           "400": { "description": "Validation error" },
@@ -78,7 +104,9 @@
       },
       "delete": {
         "summary": "Delete book",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
         "responses": {
           "200": { "description": "Deleted successfully" },
           "404": { "description": "Not found" }
@@ -88,7 +116,9 @@
     "/api/authors": {
       "get": {
         "summary": "Get all authors",
-        "responses": { "200": { "description": "Array of authors" } }
+        "responses": {
+          "200": { "description": "Array of authors" }
+        }
       },
       "post": {
         "summary": "Create a new author",
@@ -120,7 +150,9 @@
     "/api/authors/{id}": {
       "get": {
         "summary": "Get author by ID",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
         "responses": {
           "200": { "description": "Author object" },
           "404": { "description": "Not found" }
@@ -128,8 +160,16 @@
       },
       "put": {
         "summary": "Update author",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
-        "requestBody": { "content": { "application/json": { "schema": { "type": "object" } } } },
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "type": "object" }
+            }
+          }
+        },
         "responses": {
           "200": { "description": "Updated author" },
           "400": { "description": "Validation error" },
@@ -138,7 +178,9 @@
       },
       "delete": {
         "summary": "Delete author",
-        "parameters": [{ "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
         "responses": {
           "200": { "description": "Deleted successfully" },
           "404": { "description": "Not found" }
