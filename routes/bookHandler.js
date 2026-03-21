@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Book = require('../models/Book');           // ← correct path to models/Book.js
-const mongoose = require('mongoose');             // ← NEW: added for isValidObjectId
+const mongoose = require('mongoose');             // ← for isValidObjectId
 const { body, validationResult } = require('express-validator');
 
 /**
@@ -48,7 +48,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
 
-  // Step 1: Check if it's a valid ObjectId format
+  // Check if it's a valid ObjectId format
   if (!mongoose.isValidObjectId(id)) {
     return res.status(400).json({
       message: 'Invalid book ID format. Must be a 24-character hexadecimal string.'
@@ -78,17 +78,38 @@ router.get('/:id', async (req, res) => {
  *           schema:
  *             type: object
  *             required: [title, author]
+ *             properties:
+ *               title: { type: string }
+ *               author: { type: string }
+ *               isbn: { type: string }
+ *               genre: { type: string, enum: ["Fiction", "Non-Fiction", "Sci-Fi", "Fantasy", "Mystery", "Biography", "Other"] }
+ *               publicationYear: { type: integer }
+ *               pageCount: { type: integer }
+ *               description: { type: string }
+ *               coverImageUrl: { type: string }
+ *               rating: { type: number }
+ *               isRead: { type: boolean }
+ *               userNotes: { type: string }
  *     responses:
  *       201:
  *         description: Created book
  *       400:
  *         description: Validation error
+ *       409:
+ *         description: Duplicate ISBN
+ *       500:
+ *         description: Server error
  */
 router.post(
   '/',
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('author').trim().notEmpty().withMessage('Author is required'),
+    // Optional: add more field validations
+    body('isbn').optional().trim().isISBN().withMessage('Invalid ISBN format'),
+    // You can add more here later, e.g.:
+    // body('publicationYear').optional().isInt({ min: 1000, max: new Date().getFullYear() + 1 }),
+    // body('genre').optional().isIn(['Fiction', 'Non-Fiction', 'Sci-Fi', 'Fantasy', 'Mystery', 'Biography', 'Other']),
   ],
   (req, res, next) => {
     const errors = validationResult(req);
@@ -99,11 +120,36 @@ router.post(
   },
   async (req, res) => {
     try {
-      const book = new Book(req.body);
+      // Remove client-provided _id / timestamps (safety)
+      const bookData = { ...req.body };
+      delete bookData._id;
+      delete bookData.addedDate;
+      delete bookData.createdAt;
+      delete bookData.updatedAt;
+      delete bookData.__v;
+
+      const book = new Book(bookData);
       await book.save();
       res.status(201).json(book);
     } catch (err) {
-      res.status(500).json({ message: 'Server error', error: err.message });
+      if (err.code === 11000) { // MongoDB duplicate key error (e.g. unique ISBN)
+        return res.status(409).json({
+          message: 'Duplicate ISBN',
+          error: 'A book with this ISBN already exists',
+          field: 'isbn',
+          value: err.keyValue?.isbn || 'unknown'
+        });
+      }
+      if (err.name === 'ValidationError') {
+        return res.status(400).json({ 
+          message: 'Validation failed', 
+          errors: err.errors 
+        });
+      }
+      res.status(500).json({ 
+        message: 'Server error', 
+        error: err.message 
+      });
     }
   }
 );
