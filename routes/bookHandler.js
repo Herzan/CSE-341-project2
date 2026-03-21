@@ -22,8 +22,38 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Add POST, GET/:id, PUT/:id, DELETE/:id similarly when ready
-// Example minimal POST:
+/**
+ * @swagger
+ * /api/books/{id}:
+ *   get:
+ *     summary: Get book by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The MongoDB ObjectId of the book (24 hexadecimal characters)
+ *     responses:
+ *       200:
+ *         description: Book object
+ *       404:
+ *         description: Book not found
+ *       500:
+ *         description: Server error (e.g. invalid ID format)
+ */
+router.get('/:id', async (req, res) => {
+  try {
+    const book = await Book.findById(req.params.id);
+    if (!book) {
+      return res.status(404).json({ message: 'Book not found' });
+    }
+    res.status(200).json(book);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
+});
+
 /**
  * @swagger
  * /api/books:
@@ -45,15 +75,17 @@ router.get('/', async (req, res) => {
 router.post(
   '/',
   [
-    body('title').trim().notEmpty(),
-    body('author').trim().notEmpty(),
+    body('title').trim().notEmpty().withMessage('Title is required'),
+    body('author').trim().notEmpty().withMessage('Author is required'),
   ],
-  async (req, res) => {
+  (req, res, next) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       return res.status(400).json({ errors: errors.array() });
     }
-
+    next();
+  },
+  async (req, res) => {
     try {
       const book = new Book(req.body);
       await book.save();
