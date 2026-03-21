@@ -2,6 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const Book = require('../models/Book');           // ← correct path to models/Book.js
+const mongoose = require('mongoose');             // ← NEW: added for isValidObjectId
 const { body, validationResult } = require('express-validator');
 
 /**
@@ -37,14 +38,25 @@ router.get('/', async (req, res) => {
  *     responses:
  *       200:
  *         description: Book object
+ *       400:
+ *         description: Invalid ID format
  *       404:
  *         description: Book not found
  *       500:
- *         description: Server error (e.g. invalid ID format)
+ *         description: Server error
  */
 router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
+  // Step 1: Check if it's a valid ObjectId format
+  if (!mongoose.isValidObjectId(id)) {
+    return res.status(400).json({
+      message: 'Invalid book ID format. Must be a 24-character hexadecimal string.'
+    });
+  }
+
   try {
-    const book = await Book.findById(req.params.id);
+    const book = await Book.findById(id);
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
     }
