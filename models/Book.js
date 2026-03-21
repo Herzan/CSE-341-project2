@@ -4,7 +4,23 @@ const bookSchema = new mongoose.Schema({
   title: { type: String, required: true, trim: true },
   author: { type: String, required: true },
   isbn: { type: String, unique: true, sparse: true },
-  genre: { type: String, enum: ['Fiction', 'Non-Fiction', 'Sci-Fi', 'Fantasy', 'Mystery', 'Biography', 'Other'] },
+  genre: { 
+    type: String, 
+    enum: [
+      'Fiction', 
+      'Non-Fiction', 
+      'Sci-Fi', 
+      'Fantasy', 
+      'Mystery', 
+      'Biography', 
+      'Self-Help',      // ← Add this (perfect for Atomic Habits)
+      'Psychology',     // ← Useful for habit/mindset books
+      'Business',       // ← For productivity/entrepreneurship
+      'History', 
+      'Other'
+    ],
+    default: 'Other'    // Optional: fallback if nothing matches
+  },
   publicationYear: { type: Number, min: 1000, max: new Date().getFullYear() + 1 },
   pageCount: { type: Number, min: 1 },
   description: { type: String, maxlength: 1000 },
