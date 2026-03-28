@@ -2,11 +2,12 @@
 
 const express = require('express');
 const router = express.Router();
-const Author = require('../models/Author');// adjust path if models/ folder
+const Author = require('../models/Author');
 const { body, validationResult } = require('express-validator');
+const { isAuthenticated } = require('../middleware/auth');   // ← Added for protection
 
 // ────────────────────────────────────────────────
-// GET /api/authors - Get all authors
+// GET /api/authors - Get all authors (Public)
 // ────────────────────────────────────────────────
 /**
  * @swagger
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
 });
 
 // ────────────────────────────────────────────────
-// GET /api/authors/:id - Get one author
+// GET /api/authors/:id - Get one author (Public)
 // ────────────────────────────────────────────────
 /**
  * @swagger
@@ -57,13 +58,15 @@ router.get('/:id', async (req, res) => {
 });
 
 // ────────────────────────────────────────────────
-// POST /api/authors - Create author
+// POST /api/authors - Create author (PROTECTED)
 // ────────────────────────────────────────────────
 /**
  * @swagger
  * /api/authors:
  *   post:
  *     summary: Create a new author
+ *     security:
+ *       - sessionAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -83,9 +86,12 @@ router.get('/:id', async (req, res) => {
  *         description: Author created
  *       400:
  *         description: Validation error
+ *       401:
+ *         description: Unauthorized - Please log in with Google
  */
 router.post(
   '/',
+  isAuthenticated,   // ← Protected
   [
     body('name').trim().notEmpty().withMessage('Name is required'),
     body('birthYear').optional().isInt({ min: 1500, max: 2026 }).withMessage('Invalid birth year'),
@@ -113,13 +119,15 @@ router.post(
 );
 
 // ────────────────────────────────────────────────
-// PUT /api/authors/:id - Update author
+// PUT /api/authors/:id - Update author (PROTECTED)
 // ────────────────────────────────────────────────
 /**
  * @swagger
  * /api/authors/{id}:
  *   put:
  *     summary: Update author
+ *     security:
+ *       - sessionAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -136,11 +144,14 @@ router.post(
  *         description: Updated author
  *       400:
  *         description: Validation error
+ *       401:
+ *         description: Unauthorized
  *       404:
  *         description: Not found
  */
 router.put(
   '/:id',
+  isAuthenticated,   // ← Protected
   [
     body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
     body('birthYear').optional().isInt({ min: 1500, max: 2026 }),
@@ -170,13 +181,15 @@ router.put(
 );
 
 // ────────────────────────────────────────────────
-// DELETE /api/authors/:id - Delete author
+// DELETE /api/authors/:id - Delete author (PROTECTED)
 // ────────────────────────────────────────────────
 /**
  * @swagger
  * /api/authors/{id}:
  *   delete:
  *     summary: Delete author
+ *     security:
+ *       - sessionAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -186,17 +199,23 @@ router.put(
  *     responses:
  *       200:
  *         description: Deleted successfully
+ *       401:
+ *         description: Unauthorized
  *       404:
  *         description: Not found
  */
-router.delete('/:id', async (req, res) => {
-  try {
-    const author = await Author.findByIdAndDelete(req.params.id);
-    if (!author) return res.status(404).json({ message: 'Author not found' });
-    res.status(200).json({ message: 'Author deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error' });
+router.delete(
+  '/:id',
+  isAuthenticated,   // ← Protected
+  async (req, res) => {
+    try {
+      const author = await Author.findByIdAndDelete(req.params.id);
+      if (!author) return res.status(404).json({ message: 'Author not found' });
+      res.status(200).json({ message: 'Author deleted successfully' });
+    } catch (err) {
+      res.status(500).json({ message: 'Server error' });
+    }
   }
-});
+);
 
 module.exports = router;

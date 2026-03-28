@@ -1,6 +1,10 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
+const passport = require('./config/passport');   // Make sure this path is correct
+
 require('dotenv').config();
 
 const app = express();
@@ -8,6 +12,23 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+// Session setup (MUST be before passport)
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  store: MongoStore.create({ 
+    mongoUrl: process.env.MONGODB_URI 
+  }),
+  cookie: { 
+    maxAge: 1000 * 60 * 60 * 24,   // 1 day
+    secure: false   // Set to true in production with HTTPS
+  }
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI)
@@ -17,8 +38,44 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
+// Auth routes (place before other API routes)
+app.get('/api/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
+
+app.get('/api/auth/google/callback',
+  passport.authenticate('google', { 
+    failureRedirect: '/' 
+  }),
+  (req, res) => {
+    res.redirect('/api-docs');
+  }
+);
+
+app.get('/api/auth/logout', (req, res) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ message: 'Logout error' });
+    }
+    res.json({ message: 'Logged out successfully' });
+  });
+});
+
+app.get('/api/auth/current-user', (req, res) => {
+  if (req.isAuthenticated()) {
+    res.json({
+      _id: req.user._id,
+      displayName: req.user.displayName,
+      email: req.user.email,
+      photo: req.user.photo
+    });
+  } else {
+    res.status(401).json({ message: 'Not authenticated' });
+  }
+});
+
 // Routes
-const bookHandler   = require('./routes/bookHandler');    // ← fixed name
+const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
 
@@ -32,7 +89,8 @@ app.get('/', (req, res) => {
     message:   'Book Library API is running',
     docs:      '/api-docs          → interactive Swagger UI',
     rawSpec:   '/api-docs/swagger.json → static OpenAPI JSON',
-    mongodb:   mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    mongodb:   mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    auth:      req.isAuthenticated() ? 'logged in' : 'not logged in'
   });
 });
 
@@ -46,4 +104,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
+  console.log(`→ Google Login: http://localhost:${PORT}/api/auth/google`);
 });

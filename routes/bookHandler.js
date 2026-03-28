@@ -4,8 +4,9 @@ const router = express.Router();
 const Book = require('../models/Book');
 const mongoose = require('mongoose');
 const { body, validationResult } = require('express-validator');
+const { isAuthenticated } = require('../middleware/auth');   // ← Add this
 
-// GET /api/books - Get all books
+// GET /api/books - Get all books (Public - anyone can view)
 router.get('/', async (req, res) => {
   try {
     const books = await Book.find().sort({ addedDate: -1 });
@@ -15,7 +16,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/books/:id - Get book by ID
+// GET /api/books/:id - Get book by ID (Public)
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -36,9 +37,10 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// POST /api/books - Create a new book
+// POST /api/books - Create a new book (Protected)
 router.post(
   '/',
+  isAuthenticated,                    // ← Protection added here
   [
     body('title').trim().notEmpty().withMessage('Title is required'),
     body('author').trim().notEmpty().withMessage('Author is required'),
@@ -86,9 +88,10 @@ router.post(
   }
 );
 
-// PUT /api/books/:id - Update book
+// PUT /api/books/:id - Update book (Protected)
 router.put(
   '/:id',
+  isAuthenticated,                    // ← Protection added here
   [
     body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
     body('author').optional().trim().notEmpty().withMessage('Author cannot be empty'),
@@ -127,23 +130,27 @@ router.put(
   }
 );
 
-// DELETE /api/books/:id - Delete book
-router.delete('/:id', async (req, res) => {
-  const { id } = req.params;
+// DELETE /api/books/:id - Delete book (Protected)
+router.delete(
+  '/:id',
+  isAuthenticated,                    // ← Protection added here
+  async (req, res) => {
+    const { id } = req.params;
 
-  if (!mongoose.isValidObjectId(id)) {
-    return res.status(400).json({ message: 'Invalid book ID format' });
-  }
-
-  try {
-    const book = await Book.findByIdAndDelete(id);
-    if (!book) {
-      return res.status(404).json({ message: 'Book not found' });
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({ message: 'Invalid book ID format' });
     }
-    res.status(200).json({ message: 'Book deleted successfully' });
-  } catch (err) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+
+    try {
+      const book = await Book.findByIdAndDelete(id);
+      if (!book) {
+        return res.status(404).json({ message: 'Book not found' });
+      }
+      res.status(200).json({ message: 'Book deleted successfully' });
+    } catch (err) {
+      res.status(500).json({ message: 'Server error', error: err.message });
+    }
   }
-});
+);
 
 module.exports = router;
