@@ -9,34 +9,45 @@ require('dotenv').config();
 
 const app = express();
 
-// Middleware
-app.use(cors());
+// ====================== MIDDLEWARE ======================
+app.use(cors({
+  origin: process.env.CLIENT_URL || 'http://localhost:3000', // Better for production
+  credentials: true
+}));
 app.use(express.json());
 
-// Session setup (MUST be before passport) - FIXED
+// FIXED: Session setup for connect-mongo v6+
 app.use(session({
-  secret: process.env.SESSION_SECRET,
+  secret: process.env.SESSION_SECRET || 'your-fallback-secret-change-in-production',
   resave: false,
   saveUninitialized: false,
-  store: new MongoStore({ 
-    mongoUrl: process.env.MONGODB_URI 
+  store: MongoStore.create({
+    mongoUrl: process.env.MONGODB_URI,
+    collectionName: 'sessions',        // optional but recommended
+    ttl: 24 * 60 * 60,                 // 1 day in seconds
+    autoRemove: 'interval',
+    autoRemoveInterval: 10,            // minutes
   }),
   cookie: { 
-    maxAge: 1000 * 60 * 60 * 24,   // 1 day
-    secure: false   
+    maxAge: 1000 * 60 * 60 * 24,       // 1 day
+    secure: process.env.NODE_ENV === 'production',
+    httpOnly: true,
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// MongoDB connection
+// ====================== DATABASE ======================
 mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('✅ MongoDB connected'))
+  .then(() => console.log('✅ MongoDB connected successfully'))
   .catch(err => {
     console.error('❌ MongoDB connection error:', err);
     process.exit(1);
   });
+
+// ====================== ROUTES ======================
 
 // Auth routes - GitHub OAuth
 app.get('/github', 
@@ -75,7 +86,7 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// Your existing routes
+// Your existing route handlers
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
@@ -91,19 +102,28 @@ app.get('/', (req, res) => {
     docs:      '/api-docs          → interactive Swagger UI',
     rawSpec:   '/api-docs/swagger.json → static OpenAPI JSON',
     mongodb:   mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    auth:      req.isAuthenticated() ? 'logged in' : 'not logged in'
+    auth:      req.isAuthenticated() ? 'logged in' : 'not logged in',
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Server error', error: err.message });
+// Global error handler
+app.get('/', (req, res) => {
+  res.json({
+    message: 'Book Library API is running',
+    docs: '/api-docs',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    auth: req.isAuthenticated() ? `logged in as ${req.user.displayName}` : 'not logged in',
+    env: process.env.NODE_ENV || 'development'
+  });
 });
 
+// ====================== START SERVER ======================
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
-  console.log(`→ GitHub Login: http://localhost:${PORT}/github`);
+  console.log(`→ Swagger UI:     http://localhost:${PORT}/api-docs`);
+  console.log(`→ GitHub Login:   http://localhost:${PORT}/github`);
+  console.log(`→ Current User:   http://localhost:${PORT}/current-user`);
 });
