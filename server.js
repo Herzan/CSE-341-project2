@@ -16,13 +16,13 @@ const app = express();
 
 // ====================== MIDDLEWARE ======================
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5000',
+  origin: process.env.CLIENT_URL || '*',
   credentials: true
 }));
 
 app.use(express.json());
 
-// Session setup (connect-mongo v6)
+// Session setup - Simplified and reliable for connect-mongo v6
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -30,12 +30,12 @@ app.use(session({
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60,
+    ttl: 24 * 60 * 60,   // 1 day
   }),
   cookie: { 
     maxAge: 1000 * 60 * 60 * 24,
-    secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
   }
 }));
@@ -53,14 +53,12 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // ====================== ROUTES ======================
 
-// GitHub OAuth
+// GitHub Login
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 app.get('/github/callback',
   passport.authenticate('github', { failureRedirect: '/' }),
-  (req, res) => {
-    res.redirect('/api-docs');
-  }
+  (req, res) => res.redirect('/api-docs')
 );
 
 // FIXED Logout
@@ -72,8 +70,8 @@ app.get('/logout', (req, res, next) => {
       if (err) return next(err);
       res.clearCookie('connect.sid');
       res.json({ 
-        message: 'Logged out successfully',
-        redirect: '/api-docs'
+        success: true,
+        message: 'Logged out successfully'
       });
     });
   });
@@ -87,37 +85,38 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// API Routes
+// API Routes - Use authorHandler (the one with isAuthenticated protection)
 const bookHandler   = require('./routes/bookHandler');
-const authorHandler = require('./routes/authorHandler');   // Use this one (it has protection)
+const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
 
 app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// Root
+// Root route
 app.get('/', (req, res) => {
   res.json({
-    message: 'Book Library API is running',
-    docs: '/api-docs',
+    message: 'Book Library API is running ✅',
+    login: '/github',
     logout: '/logout',
-    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    auth: req.isAuthenticated() ? 'logged in' : 'not logged in'
+    docs: '/api-docs',
+    currentUser: '/current-user',
+    status: 'OK'
   });
 });
 
 // Global error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  console.error('Error:', err.stack);
+  res.status(500).json({ message: 'Internal Server Error' });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
-  console.log(`→ Login:   http://localhost:${PORT}/github`);
-  console.log(`→ Logout:  http://localhost:${PORT}/logout`);
+  console.log(`→ Login:  https://cse-341-project2-ea66.onrender.com/github`);
+  console.log(`→ Logout: https://cse-341-project2-ea66.onrender.com/logout`);
+  console.log(`→ Swagger: /api-docs`);
 });
