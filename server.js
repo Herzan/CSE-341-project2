@@ -20,27 +20,28 @@ app.use('/', authRoutes);
 
 // ====================== MIDDLEWARE ======================
 app.use(cors({
-  origin: '*',           // Change to specific origin(s) in production if possible
+  origin: '*',
   credentials: true
 }));
 
 app.use(express.json());
 
-// Session setup (reliable for connect-mongo)
-const mongoStore = MongoStore.create({
+// FIXED: connect-mongo v6+ usage
+const sessionStore = MongoStore.create({
   mongoUrl: process.env.MONGODB_URI,
   collectionName: 'sessions',
-  ttl: 24 * 60 * 60,     // 1 day in seconds
-  autoRemove: 'native'
+  ttl: 24 * 60 * 60,        // 24 hours
+  autoRemove: 'native',
+  touchAfter: 24 * 3600     // optimize writes
 });
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  store: mongoStore,
+  store: sessionStore,
   cookie: { 
-    maxAge: 1000 * 60 * 60 * 24,   // 1 day
+    maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
