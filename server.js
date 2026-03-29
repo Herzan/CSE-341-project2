@@ -1,23 +1,22 @@
 // server.js
 // ====================== LOAD ENVIRONMENT VARIABLES FIRST ======================
 require('dotenv').config({ 
-  path: '.env'   // explicit path - helps in some cases
+  path: '.env'   
 });
 
 console.log('✅ dotenv loaded');
 console.log('GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? '✅ Present' : '❌ MISSING');
 console.log('GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? '✅ Present' : '❌ MISSING');
 
-// Now require everything else
+// ====================== IMPORTS ======================
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
-const passport = require('./config/passport');   // ← Now it should see the env vars
+const MongoStore = require('connect-mongo');     // ← Only once
+const passport = require('./config/passport');
 
-// ... rest of your file stays the same
-
+// ====================== APP SETUP ======================
 const app = express();
 
 // ====================== MIDDLEWARE ======================
@@ -28,22 +27,20 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session setup - FIXED for connect-mongo v6+
-const MongoStore = require('connect-mongo');
-
+// Session setup (connect-mongo v6+)
 app.use(session({
-  secret: process.env.SESSION_SECRET || '8fK9pL2mX7qR4vT6wY8zA3bC5dE7fG9hJ1kL3mN5oP7qR9sT2uV4wX6yZ8aB0cD2eF4gH6iJ8kL0mN2oP4qR6sT8uV0wX2yZ4aB6cD8eF0gH2iJ4kL6mN8oP0qR2sT4uV6wX8yZ0aB2cD4eF6gH8iJ0kL2mN4oP6qR8sT0uV2wX4yZ6aB8cD0eF2gH4iJ6kL8mN0oP2qR4sT6uV8wX0yZ2aB4cD6eF8gH0iJ2kL4mN6oP8qR0sT2uV4wX6yZ8aB0cD2eF4',
+  secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60,           // 1 day in seconds
+    ttl: 24 * 60 * 60,           // 1 day
     autoRemove: 'interval',
-    autoRemoveInterval: 10,      // minutes
+    autoRemoveInterval: 10,
   }),
   cookie: { 
-    maxAge: 1000 * 60 * 60 * 24, // 1 day
+    maxAge: 1000 * 60 * 60 * 24,
     secure: process.env.NODE_ENV === 'production',
     httpOnly: true,
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
@@ -79,9 +76,7 @@ app.get('/github/callback',
 
 app.get('/logout', (req, res) => {
   req.logout((err) => {
-    if (err) {
-      return res.status(500).json({ message: 'Logout error' });
-    }
+    if (err) return res.status(500).json({ message: 'Logout error' });
     res.json({ message: 'Logged out successfully' });
   });
 });
@@ -109,7 +104,7 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// ====================== ROOT ROUTE (Only ONE!) ======================
+// ====================== ROOT ROUTE ======================
 app.get('/', (req, res) => {
   res.json({
     message:     'Book Library API is running',
@@ -121,8 +116,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// ====================== GLOBAL ERROR HANDLER (should be last) ======================
-// Remove the duplicate app.get('/') and use proper error handling middleware instead:
+// ====================== GLOBAL ERROR HANDLER ======================
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({
