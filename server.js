@@ -1,4 +1,4 @@
-// server.js
+// server.js - FINAL FIXED VERSION
 require('dotenv').config({ path: '.env' });
 
 console.log('✅ dotenv loaded');
@@ -16,22 +16,24 @@ const app = express();
 
 // ====================== MIDDLEWARE ======================
 app.use(cors({
-  origin: process.env.CLIENT_URL || '*',
+  origin: '*',   // Simplified for Render
   credentials: true
 }));
 
 app.use(express.json());
 
-// Session setup - Simplified and reliable for connect-mongo v6
+// ✅ MOST RELIABLE SESSION SETUP FOR connect-mongo v6
+const mongoStore = MongoStore.create({
+  mongoUrl: process.env.MONGODB_URI,
+  collectionName: 'sessions',
+  ttl: 24 * 60 * 60,   // 1 day
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({
-    mongoUrl: process.env.MONGODB_URI,
-    collectionName: 'sessions',
-    ttl: 24 * 60 * 60,   // 1 day
-  }),
+  store: mongoStore,
   cookie: { 
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
@@ -53,7 +55,6 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // ====================== ROUTES ======================
 
-// GitHub Login
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 app.get('/github/callback',
@@ -61,7 +62,7 @@ app.get('/github/callback',
   (req, res) => res.redirect('/api-docs')
 );
 
-// FIXED Logout
+// FIXED LOGOUT ROUTE
 app.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
@@ -71,7 +72,7 @@ app.get('/logout', (req, res, next) => {
       res.clearCookie('connect.sid');
       res.json({ 
         success: true,
-        message: 'Logged out successfully'
+        message: 'Logged out successfully. You can now close this tab or go back to /api-docs'
       });
     });
   });
@@ -85,7 +86,7 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// API Routes - Use authorHandler (the one with isAuthenticated protection)
+// API Routes
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
@@ -94,15 +95,14 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// Root route
+// Root
 app.get('/', (req, res) => {
   res.json({
     message: 'Book Library API is running ✅',
     login: '/github',
     logout: '/logout',
     docs: '/api-docs',
-    currentUser: '/current-user',
-    status: 'OK'
+    currentUser: '/current-user'
   });
 });
 
@@ -116,7 +116,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Login:  https://cse-341-project2-ea66.onrender.com/github`);
-  console.log(`→ Logout: https://cse-341-project2-ea66.onrender.com/logout`);
-  console.log(`→ Swagger: /api-docs`);
+  console.log(`→ Go to: https://cse-341-project2-ea66.onrender.com/github to login`);
 });
