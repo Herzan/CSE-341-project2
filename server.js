@@ -28,7 +28,9 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session setup (connect-mongo v6+)
+// Session setup - FIXED for connect-mongo v6+
+const MongoStore = require('connect-mongo');
+
 app.use(session({
   secret: process.env.SESSION_SECRET || '8fK9pL2mX7qR4vT6wY8zA3bC5dE7fG9hJ1kL3mN5oP7qR9sT2uV4wX6yZ8aB0cD2eF4gH6iJ8kL0mN2oP4qR6sT8uV0wX2yZ4aB6cD8eF0gH2iJ4kL6mN8oP0qR2sT4uV6wX8yZ0aB2cD4eF6gH8iJ0kL2mN4oP6qR8sT0uV2wX4yZ6aB8cD0eF2gH4iJ6kL8mN0oP2qR4sT6uV8wX0yZ2aB4cD6eF8gH0iJ2kL4mN6oP8qR0sT2uV4wX6yZ8aB0cD2eF4',
   resave: false,
@@ -36,7 +38,7 @@ app.use(session({
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60,           // 1 day
+    ttl: 24 * 60 * 60,           // 1 day in seconds
     autoRemove: 'interval',
     autoRemoveInterval: 10,      // minutes
   }),

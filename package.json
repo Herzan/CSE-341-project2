@@ -19,19 +19,18 @@
   },
   "homepage": "https://github.com/Herzan/CSE-341-project2#readme",
   "dependencies": {
-"body-parser": "^2.2.2",
-  "connect-mongo": "^6.0.0",
-  "cors": "^2.8.6",
-  "dotenv": "^17.3.1",
-  "express": "^5.2.1",
-  "express-session": "^1.19.0",
-  "express-validator": "^7.3.1",
-  "mongodb": "^7.1.0",
-  "mongoose": "^9.3.1",
-  "passport": "^0.7.0",
-  "passport-github2": "^0.1.12",
-  "swagger-jsdoc": "^6.2.8",
-  "swagger-ui-express": "^5.0.1"
+    "connect-mongo": "^6.0.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^4.19.2",
+    "express-session": "^1.19.0",
+    "express-validator": "^7.3.1",
+    "mongodb": "^7.1.0",
+    "mongoose": "^9.3.1",
+    "passport": "^0.7.0",
+    "passport-github2": "^0.1.12",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
