@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
-const passport = require('./config/passport');   // Make sure this path is correct
+const passport = require('./config/passport');
 
 require('dotenv').config();
 
@@ -13,17 +13,17 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Session setup (MUST be before passport)
+// Session setup (MUST be before passport) - FIXED
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  store: MongoStore.create({ 
+  store: new MongoStore({ 
     mongoUrl: process.env.MONGODB_URI 
   }),
   cookie: { 
     maxAge: 1000 * 60 * 60 * 24,   // 1 day
-    secure: false   // Set to true in production with HTTPS
+    secure: false   
   }
 }));
 
@@ -38,9 +38,7 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// ======================
-// Auth routes - GitHub OAuth (using your provided credentials)
-// ======================
+// Auth routes - GitHub OAuth
 app.get('/github', 
   passport.authenticate('github', { scope: ['user:email'] })
 );
@@ -77,9 +75,7 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// ======================
 // Your existing routes
-// ======================
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
