@@ -1,9 +1,10 @@
-// server.js - FINAL FIXED VERSION
+// server.js - FIXED & IMPROVED VERSION
 require('dotenv').config({ path: '.env' });
 
 console.log('✅ dotenv loaded');
 console.log('GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? '✅ Present' : '❌ MISSING');
 console.log('GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? '✅ Present' : '❌ MISSING');
+console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -11,22 +12,26 @@ const cors = require('cors');
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const passport = require('./config/passport');
+const authRoutes = require('./routes/auth');
 
 const app = express();
 
+app.use('/', authRoutes);
+
 // ====================== MIDDLEWARE ======================
 app.use(cors({
-  origin: '*',   // Simplified for Render
+  origin: '*',           // Change to specific origin(s) in production if possible
   credentials: true
 }));
 
 app.use(express.json());
 
-// ✅ MOST RELIABLE SESSION SETUP FOR connect-mongo v6
+// Session setup (reliable for connect-mongo)
 const mongoStore = MongoStore.create({
   mongoUrl: process.env.MONGODB_URI,
   collectionName: 'sessions',
-  ttl: 24 * 60 * 60,   // 1 day
+  ttl: 24 * 60 * 60,     // 1 day in seconds
+  autoRemove: 'native'
 });
 
 app.use(session({
@@ -35,7 +40,7 @@ app.use(session({
   saveUninitialized: false,
   store: mongoStore,
   cookie: { 
-    maxAge: 1000 * 60 * 60 * 24,
+    maxAge: 1000 * 60 * 60 * 24,   // 1 day
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
@@ -55,24 +60,38 @@ mongoose.connect(process.env.MONGODB_URI)
 
 // ====================== ROUTES ======================
 
+// GitHub Login
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
+// GitHub Callback - FIXED
 app.get('/github/callback',
-  passport.authenticate('github', { failureRedirect: '/' }),
-  (req, res) => res.redirect('/api-docs')
+  passport.authenticate('github', { 
+    failureRedirect: '/', 
+    failureMessage: true 
+  }),
+  (req, res) => {
+    res.redirect('/api-docs');
+  }
 );
 
-// FIXED LOGOUT ROUTE
+// Improved Logout (Passport v0.6+ requires callback)
 app.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
 
     req.session.destroy((err) => {
       if (err) return next(err);
-      res.clearCookie('connect.sid');
+
+      res.clearCookie('connect.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+      });
+
       res.json({ 
         success: true,
-        message: 'Logged out successfully. You can now close this tab or go back to /api-docs'
+        message: 'Logged out successfully'
       });
     });
   });
@@ -95,7 +114,7 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// Root
+// Root route
 app.get('/', (req, res) => {
   res.json({
     message: 'Book Library API is running ✅',
@@ -116,5 +135,5 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Go to: https://cse-341-project2-ea66.onrender.com/github to login`);
+  console.log(`→ Login URL: https://cse-341-project2-ea66.onrender.com/github`);
 });
