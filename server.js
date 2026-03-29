@@ -1,22 +1,20 @@
-// server.js - FIXED & IMPROVED VERSION
-require('dotenv').config({ path: '.env' });
+// server.js - FINAL FIXED VERSION (MongoStore error resolved)
+require('dotenv').config();
 
 console.log('✅ dotenv loaded');
 console.log('GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? '✅ Present' : '❌ MISSING');
 console.log('GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? '✅ Present' : '❌ MISSING');
-console.log('NODE_ENV:', process.env.NODE_ENV || 'development');
 
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');
 const passport = require('./config/passport');
-const authRoutes = require('./routes/auth');
+
+// FIXED: Use .default for connect-mongo compatibility
+const MongoStore = require('connect-mongo').default || require('connect-mongo');
 
 const app = express();
-
-app.use('/', authRoutes);
 
 // ====================== MIDDLEWARE ======================
 app.use(cors({
@@ -26,13 +24,13 @@ app.use(cors({
 
 app.use(express.json());
 
-// FIXED: connect-mongo v6+ usage
+// FIXED Session Store
 const sessionStore = MongoStore.create({
   mongoUrl: process.env.MONGODB_URI,
   collectionName: 'sessions',
-  ttl: 24 * 60 * 60,        // 24 hours
+  ttl: 24 * 60 * 60,           // 1 day
   autoRemove: 'native',
-  touchAfter: 24 * 3600     // optimize writes
+  touchAfter: 24 * 3600
 });
 
 app.use(session({
@@ -40,7 +38,7 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   store: sessionStore,
-  cookie: { 
+  cookie: {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -59,41 +57,20 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// ====================== ROUTES ======================
-
-// GitHub Login
+// ====================== AUTH ROUTES ======================
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
-// GitHub Callback - FIXED
 app.get('/github/callback',
-  passport.authenticate('github', { 
-    failureRedirect: '/', 
-    failureMessage: true 
-  }),
-  (req, res) => {
-    res.redirect('/api-docs');
-  }
+  passport.authenticate('github', { failureRedirect: '/' }),
+  (req, res) => res.redirect('/api-docs')
 );
 
-// Improved Logout (Passport v0.6+ requires callback)
 app.get('/logout', (req, res, next) => {
   req.logout((err) => {
     if (err) return next(err);
-
-    req.session.destroy((err) => {
-      if (err) return next(err);
-
-      res.clearCookie('connect.sid', {
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
-      });
-
-      res.json({ 
-        success: true,
-        message: 'Logged out successfully'
-      });
+    req.session.destroy(() => {
+      res.clearCookie('connect.sid');
+      res.json({ success: true, message: 'Logged out successfully' });
     });
   });
 });
@@ -106,7 +83,7 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// API Routes
+// ====================== API ROUTES ======================
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
@@ -115,26 +92,17 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// Root route
+// Root
 app.get('/', (req, res) => {
   res.json({
     message: 'Book Library API is running ✅',
     login: '/github',
-    logout: '/logout',
-    docs: '/api-docs',
-    currentUser: '/current-user'
+    docs: '/api-docs'
   });
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
-  res.status(500).json({ message: 'Internal Server Error' });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Login URL: https://cse-341-project2-ea66.onrender.com/github`);
 });
