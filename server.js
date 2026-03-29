@@ -1,22 +1,16 @@
 // server.js
-// ====================== LOAD ENVIRONMENT VARIABLES FIRST ======================
-require('dotenv').config({ 
-  path: '.env'   
-});
+require('dotenv').config({ path: '.env' });
 
 console.log('✅ dotenv loaded');
 console.log('GITHUB_CLIENT_ID:', process.env.GITHUB_CLIENT_ID ? '✅ Present' : '❌ MISSING');
 console.log('GITHUB_CLIENT_SECRET:', process.env.GITHUB_CLIENT_SECRET ? '✅ Present' : '❌ MISSING');
 
-// ====================== IMPORTS ======================
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');     // ← Only once
 const passport = require('./config/passport');
 
-// ====================== APP SETUP ======================
 const app = express();
 
 // ====================== MIDDLEWARE ======================
@@ -27,7 +21,9 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session setup (connect-mongo v6+)
+// Session setup - Most compatible way for connect-mongo v6
+const MongoStore = require('connect-mongo')(session);
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -35,7 +31,7 @@ app.use(session({
   store: MongoStore.create({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
-    ttl: 24 * 60 * 60,           // 1 day
+    ttl: 24 * 60 * 60,
     autoRemove: 'interval',
     autoRemoveInterval: 10,
   }),
@@ -59,19 +55,13 @@ mongoose.connect(process.env.MONGODB_URI)
   });
 
 // ====================== ROUTES ======================
+// (keep all your auth routes and API routes exactly as they are)
 
-// Auth routes - GitHub OAuth
-app.get('/github', 
-  passport.authenticate('github', { scope: ['user:email'] })
-);
+app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 app.get('/github/callback',
-  passport.authenticate('github', { 
-    failureRedirect: '/' 
-  }),
-  (req, res) => {
-    res.redirect('/api-docs');
-  }
+  passport.authenticate('github', { failureRedirect: '/' }),
+  (req, res) => res.redirect('/api-docs')
 );
 
 app.get('/logout', (req, res) => {
@@ -95,7 +85,6 @@ app.get('/current-user', (req, res) => {
   }
 });
 
-// API Routes
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
@@ -104,33 +93,25 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// ====================== ROOT ROUTE ======================
+// Root route
 app.get('/', (req, res) => {
   res.json({
-    message:     'Book Library API is running',
-    docs:        '/api-docs          → interactive Swagger UI',
-    rawSpec:     '/api-docs/swagger.json → static OpenAPI JSON',
-    mongodb:     mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    auth:        req.isAuthenticated() ? 'logged in' : 'not logged in',
-    environment: process.env.NODE_ENV || 'development'
+    message: 'Book Library API is running',
+    docs: '/api-docs',
+    mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    auth: req.isAuthenticated() ? 'logged in' : 'not logged in'
   });
 });
 
-// ====================== GLOBAL ERROR HANDLER ======================
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
+  res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// ====================== START SERVER ======================
+// Start server
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Swagger UI:     http://localhost:${PORT}/api-docs`);
-  console.log(`→ GitHub Login:   http://localhost:${PORT}/github`);
-  console.log(`→ Current User:   http://localhost:${PORT}/current-user`);
+  console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
 });
