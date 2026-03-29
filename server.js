@@ -9,7 +9,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
-const MongoStore = require('connect-mongo');   // ← Only this
+const MongoStore = require('connect-mongo');
 const passport = require('./config/passport');
 
 const app = express();
@@ -22,7 +22,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session setup for connect-mongo v6+
+// Session setup (connect-mongo v6)
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -31,8 +31,6 @@ app.use(session({
     mongoUrl: process.env.MONGODB_URI,
     collectionName: 'sessions',
     ttl: 24 * 60 * 60,
-    autoRemove: 'interval',
-    autoRemoveInterval: 10,
   }),
   cookie: { 
     maxAge: 1000 * 60 * 60 * 24,
@@ -54,36 +52,44 @@ mongoose.connect(process.env.MONGODB_URI)
   });
 
 // ====================== ROUTES ======================
+
+// GitHub OAuth
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 app.get('/github/callback',
   passport.authenticate('github', { failureRedirect: '/' }),
-  (req, res) => res.redirect('/api-docs')
+  (req, res) => {
+    res.redirect('/api-docs');
+  }
 );
 
-app.get('/logout', (req, res) => {
+// FIXED Logout
+app.get('/logout', (req, res, next) => {
   req.logout((err) => {
-    if (err) return res.status(500).json({ message: 'Logout error' });
-    res.json({ message: 'Logged out successfully' });
+    if (err) return next(err);
+
+    req.session.destroy((err) => {
+      if (err) return next(err);
+      res.clearCookie('connect.sid');
+      res.json({ 
+        message: 'Logged out successfully',
+        redirect: '/api-docs'
+      });
+    });
   });
 });
 
 app.get('/current-user', (req, res) => {
   if (req.isAuthenticated()) {
-    res.json({
-      _id: req.user._id,
-      displayName: req.user.displayName,
-      email: req.user.email,
-      photo: req.user.photo,
-      provider: req.user.provider || 'github'
-    });
+    res.json(req.user);
   } else {
     res.status(401).json({ message: 'Not authenticated' });
   }
 });
 
+// API Routes
 const bookHandler   = require('./routes/bookHandler');
-const authorHandler = require('./routes/authorHandler');
+const authorHandler = require('./routes/authorHandler');   // Use this one (it has protection)
 const swaggerRoutes = require('./routes/swagger');
 
 app.use('/api/books',   bookHandler);
@@ -95,20 +101,23 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Book Library API is running',
     docs: '/api-docs',
+    logout: '/logout',
     mongodb: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
     auth: req.isAuthenticated() ? 'logged in' : 'not logged in'
   });
 });
 
-// Error handler
+// Global error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start
+// Start server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Swagger UI: http://localhost:${PORT}/api-docs`);
+  console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
+  console.log(`→ Login:   http://localhost:${PORT}/github`);
+  console.log(`→ Logout:  http://localhost:${PORT}/logout`);
 });
