@@ -9,6 +9,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
+const MongoStore = require('connect-mongo');   // ← Only this
 const passport = require('./config/passport');
 
 const app = express();
@@ -21,9 +22,7 @@ app.use(cors({
 
 app.use(express.json());
 
-// Session setup - Most compatible way for connect-mongo v6
-const MongoStore = require('connect-mongo')(session);
-
+// Session setup for connect-mongo v6+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -55,8 +54,6 @@ mongoose.connect(process.env.MONGODB_URI)
   });
 
 // ====================== ROUTES ======================
-// (keep all your auth routes and API routes exactly as they are)
-
 app.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
 app.get('/github/callback',
@@ -93,7 +90,7 @@ app.use('/api/books',   bookHandler);
 app.use('/api/authors', authorHandler);
 app.use('/api-docs',    swaggerRoutes);
 
-// Root route
+// Root
 app.get('/', (req, res) => {
   res.json({
     message: 'Book Library API is running',
@@ -103,15 +100,15 @@ app.get('/', (req, res) => {
   });
 });
 
-// Global error handler
+// Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-// Start server
+// Start
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
+  console.log(`→ Swagger UI: http://localhost:${PORT}/api-docs`);
 });
