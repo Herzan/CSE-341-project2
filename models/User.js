@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-  googleId: { type: String, unique: true, required: true },
+  githubId: { type: String, unique: true, sparse: true },   // Changed from googleId
   displayName: { type: String },
   email: { type: String },
   photo: { type: String },
+  provider: { type: String, default: 'github' },
   addedDate: { type: Date, default: Date.now }
 }, { timestamps: true });
 

@@ -38,13 +38,15 @@ mongoose.connect(process.env.MONGODB_URI)
     process.exit(1);
   });
 
-// Auth routes (place before other API routes)
-app.get('/api/auth/google',
-  passport.authenticate('google', { scope: ['profile', 'email'] })
+// ======================
+// Auth routes - GitHub OAuth (using your provided credentials)
+// ======================
+app.get('/github', 
+  passport.authenticate('github', { scope: ['user:email'] })
 );
 
-app.get('/api/auth/google/callback',
-  passport.authenticate('google', { 
+app.get('/github/callback',
+  passport.authenticate('github', { 
     failureRedirect: '/' 
   }),
   (req, res) => {
@@ -52,7 +54,7 @@ app.get('/api/auth/google/callback',
   }
 );
 
-app.get('/api/auth/logout', (req, res) => {
+app.get('/logout', (req, res) => {
   req.logout((err) => {
     if (err) {
       return res.status(500).json({ message: 'Logout error' });
@@ -61,20 +63,23 @@ app.get('/api/auth/logout', (req, res) => {
   });
 });
 
-app.get('/api/auth/current-user', (req, res) => {
+app.get('/current-user', (req, res) => {
   if (req.isAuthenticated()) {
     res.json({
       _id: req.user._id,
       displayName: req.user.displayName,
       email: req.user.email,
-      photo: req.user.photo
+      photo: req.user.photo,
+      provider: req.user.provider || 'github'
     });
   } else {
     res.status(401).json({ message: 'Not authenticated' });
   }
 });
 
-// Routes
+// ======================
+// Your existing routes
+// ======================
 const bookHandler   = require('./routes/bookHandler');
 const authorHandler = require('./routes/authorHandler');
 const swaggerRoutes = require('./routes/swagger');
@@ -104,5 +109,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`→ Swagger: http://localhost:${PORT}/api-docs`);
-  console.log(`→ Google Login: http://localhost:${PORT}/api/auth/google`);
+  console.log(`→ GitHub Login: http://localhost:${PORT}/github`);
 });

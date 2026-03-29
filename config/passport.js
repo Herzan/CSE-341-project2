@@ -1,33 +1,28 @@
 const passport = require('passport');
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const GitHubStrategy = require('passport-github2').Strategy;
 const User = require('../models/User');
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-const callbackURL = isProduction 
-  ? 'https://cse-341-project2-ea66.onrender.com/api/auth/google/callback'
-  : 'http://localhost:5000/api/auth/google/callback';
-
-passport.use(new GoogleStrategy({
-    clientID: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: callbackURL
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: process.env.CALLBACK_URI || 'http://localhost:5000/github/callback'
   },
   async (accessToken, refreshToken, profile, done) => {
     try {
-      let user = await User.findOne({ googleId: profile.id });
+      let user = await User.findOne({ githubId: profile.id });
 
       if (!user) {
         user = await new User({
-          googleId: profile.id,
-          displayName: profile.displayName,
-          email: profile.emails[0].value,
-          photo: profile.photos?.[0]?.value || null
+          githubId: profile.id,
+          displayName: profile.displayName || profile.username,
+          email: profile.emails?.[0]?.value || null,
+          photo: profile.photos?.[0]?.value || null,
+          provider: 'github'
         }).save();
       }
       return done(null, user);
     } catch (err) {
-      console.error('Google Strategy Error:', err);
+      console.error('GitHub Strategy Error:', err);
       return done(err, null);
     }
   }
